@@ -32,6 +32,7 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 		g->cells[i].nodesInd[0]--;
 		g->cells[i].nodesInd[1]--;
 		g->cells[i].nodesInd[2]--;
+		sprintf(g->cells[i].typeName, "%d", g->cells[i].type);
 		g->cells[i].c.x = (g->nodes[g->cells[i].nodesInd[0]].x + g->nodes[g->cells[i].nodesInd[1]].x + g->nodes[g->cells[i].nodesInd[2]].x) / 3.0;
 		g->cells[i].c.y = (g->nodes[g->cells[i].nodesInd[0]].y + g->nodes[g->cells[i].nodesInd[1]].y + g->nodes[g->cells[i].nodesInd[2]].y) / 3.0;
 		g->cells[i].HX = _max_(fabs(g->nodes[g->cells[i].nodesInd[0]].x - g->nodes[g->cells[i].nodesInd[1]].x),
@@ -74,7 +75,7 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 				for (int k = 0; k < 3; k++)
 				{ // убираем у соседа номер этой €чейки, чтобы грань не повтор€лась
 					if (neigh[p][k] == i) neigh[p][k] = -1;
-				}
+				 }
 				g->eCount++;
 			}
 			if (p == -2) g->eCount++;
@@ -145,7 +146,10 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 		n1--;
 		n2--;
 		int iEdge = g->findEdge(n1, n2);
-		if (iEdge >= 0) g->edges[iEdge].type = type;
+		if (iEdge >= 0) {
+			g->edges[iEdge].type = type;
+			sprintf(g->edges[iEdge].typeName, "%i", type);
+		}
 	}
 	fclose(fp);
 

@@ -128,7 +128,7 @@ void FVM_TVD::init(char * xmlFileName)
 	mr->read(&grid);
 
 
-	/* Определение ГУ для каждой ячейки. */
+	/* Определение ГУ для каждого ребра. */
 	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
 		Edge & e = grid.edges[iEdge];
 		if (e.type == Edge::TYPE_INNER) {
@@ -172,6 +172,7 @@ void FVM_TVD::init(char * xmlFileName)
 			e.bnd = boundaries[iBound];
 		}
 	}
+
 
 	cTau = new double[grid.cCount];
 
@@ -244,12 +245,12 @@ void FVM_TVD::calcGrad()
 	int ne = grid.eCount;
 	
 
-	memset(gradR, 0, grid.cCount*sizeof(Vector));
-	memset(gradP, 0, grid.cCount*sizeof(Vector));
-	memset(gradU, 0, grid.cCount*sizeof(Vector));
-	memset(gradV, 0, grid.cCount*sizeof(Vector));
-	//return;
-	for (int iEdge = 0; iEdge < ne; iEdge++)
+	memset(gradR, 0, nc*sizeof(Vector));
+	memset(gradP, 0, nc*sizeof(Vector));
+	memset(gradU, 0, nc*sizeof(Vector));
+	memset(gradV, 0, nc*sizeof(Vector));
+	
+    for (int iEdge = 0; iEdge < ne; iEdge++)
 	{
 			
 		int c1	= grid.edges[iEdge].c1;
@@ -264,7 +265,7 @@ void FVM_TVD::calcGrad()
 		}
 
 		Vector n	= grid.edges[iEdge].n;
-		double l		= grid.edges[iEdge].l;
+		double l	= grid.edges[iEdge].l;
 			
 			
 			
@@ -292,14 +293,10 @@ void FVM_TVD::calcGrad()
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
 		register double si = grid.cells[iCell].S;
-		gradR[iCell].x /= si;
-		gradR[iCell].y /= si;
-		gradP[iCell].x /= si;
-		gradP[iCell].y /= si;
-		gradU[iCell].x /= si;
-		gradU[iCell].y /= si;
-		gradV[iCell].x /= si;
-		gradV[iCell].y /= si;
+		gradR[iCell] /= si;
+		gradP[iCell] /= si;
+		gradU[iCell] /= si;
+		gradV[iCell] /= si;
 	}
 }
 
@@ -342,7 +339,6 @@ void FVM_TVD::run()
 			fv = 0.0;
 			fe = 0.0;
 			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++)
-			//for (int iGP = 0; iGP < 1; iGP++)
 			{
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
@@ -396,7 +392,7 @@ void FVM_TVD::run()
 			fv = 0.0;
 			fe = 0.0;
 			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
-			{
+            {
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
 				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
@@ -624,26 +620,26 @@ void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL,
 		fv = fr*VI+PI*n.y;
 		fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
 	}
-	//{	// LAX-FRIEDRIX FLUX
-	//	double unl = pL.u*n.x+pL.v*n.y;
-	//	double unr = pR.u*n.x+pR.v*n.y;
-	//	double rol, rul, rvl, rel,  ror, rur, rvr, rer;
-	//	double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
-	//	rol = pL.r;
-	//	rul = pL.r*pL.u;
-	//	rvl = pL.r*pL.v;
-	//	rel = pL.r*pL.E;
-	//	ror = pR.r;
-	//	rur = pR.r*pR.u;
-	//	rvr = pR.r*pR.v;
-	//	rer = pR.r*pR.E;
-	//	double frl = rol*unl;
-	//	double frr = ror*unr;
-	//	fr = 0.5*(frr+frl								- alpha*(ror-rol));
-	//	fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
-	//	fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
-	//	fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
-	//}
+// 	{	// LAX-FRIEDRIX FLUX
+// 		double unl = pL.u*n.x+pL.v*n.y;
+// 		double unr = pR.u*n.x+pR.v*n.y;
+// 		double rol, rul, rvl, rel,  ror, rur, rvr, rer;
+// 		double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
+// 		rol = pL.r;
+// 		rul = pL.r*pL.u;
+// 		rvl = pL.r*pL.v;
+// 		rel = pL.r*pL.E;
+// 		ror = pR.r;
+// 		rur = pR.r*pR.u;
+// 		rvr = pR.r*pR.v;
+// 		rer = pR.r*pR.E;
+// 		double frl = rol*unl;
+// 		double frr = ror*unr;
+// 		fr = 0.5*(frr+frl								- alpha*(ror-rol));
+// 		fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
+// 		fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
+// 		fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+// 	}
 }
 
 
@@ -655,7 +651,7 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 		int c2	= grid.edges[iEdge].c2;
 		convertConsToPar(c1, pL);
 		convertConsToPar(c2, pR);
-		return;
+		//return;
 		//Point PE = grid.edges[iEdge].c[0];
 		Point &PE = p;
 		Point P1 = grid.cells[c1].c;
@@ -677,8 +673,19 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 
 
 	} else {
-		int c1	= grid.edges[iEdge].c1;
+		int c1 = grid.edges[iEdge].c1;
 		convertConsToPar(c1, pL);
+		//return;
+		Point &PE = p;
+		Point P1 = grid.cells[c1].c;
+		Vector DL1;
+		DL1.x = PE.x - P1.x;
+		DL1.y = PE.y - P1.y;
+		pL.r += gradR[c1].x*DL1.x + gradR[c1].y*DL1.y;
+		pL.p += gradP[c1].x*DL1.x + gradP[c1].y*DL1.y;
+		pL.u += gradU[c1].x*DL1.x + gradU[c1].y*DL1.y;
+		pL.v += gradV[c1].x*DL1.x + gradV[c1].y*DL1.y;
+
 		boundaryCond(iEdge, pL, pR);
 	}
 }
@@ -687,12 +694,13 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 {
 	Edge &edge = grid.edges[iEdge];
-	int c1	= grid.edges[iEdge].c1;
+	int c1 = edge.c1;
 	Material& m = getMaterial(c1);
 	if (edge.bnd) {
 		edge.bnd->run(iEdge, pL, pR);
 		m.URS(pR, 2);
 		m.URS(pR, 1);
+		pR.E = pR.e + 0.5*(pR.U2());
 		return;
 	}
 	else {
@@ -700,6 +708,22 @@ void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 		sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
 		throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
 	}
+	
+
+	//Edge &edge = grid.edges[iEdge];
+	//int c1	= grid.edges[iEdge].c1;
+	//Material& m = getMaterial(c1);
+	//if (edge.bnd) {
+	//	edge.bnd->run(iEdge, pL, pR);
+	//	m.URS(pR, 2);
+	//	m.URS(pR, 1);
+	//	return;
+	//}
+	//else {
+	//	char msg[128];
+	//	sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
+	//	throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
+	//}
 
 }
 

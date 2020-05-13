@@ -24,32 +24,43 @@ struct CFDBoundary
 	int			parCount;
 	Grid *		g;
 
-	static const char* TYPE_INLET;
-	static const char* TYPE_OUTLET;
-	static const char* TYPE_WALL_SLIP;
-	static const char* TYPE_WALL_NO_SLIP;
+    static const char* TYPE_INLET;
+    static const char* TYPE_OUTLET;
+    static const char* TYPE_PRESSURE;
+    static const char* TYPE_WALL_SLIP;
+    static const char* TYPE_WALL_NO_SLIP;
+    static const int TYPE_ID_INLET;
+    static const int TYPE_ID_OUTLET;
+    static const int TYPE_ID_PRESSURE;
+    static const int TYPE_ID_WALL_SLIP;
+    static const int TYPE_ID_WALL_NO_SLIP;
 
 };
 typedef std::vector< CFDBoundary* > CFDBoundaries;
 
 struct CFDBndInlet : public CFDBoundary
 {
-	virtual void run(int iEdgs, Param& pL, Param& pR);
+	virtual void run(int iEdge, Param& pL, Param& pR);
 };
 
 struct CFDBndOutlet : public CFDBoundary
 {
-	virtual void run(int iEdgs, Param& pL, Param& pR);
+	virtual void run(int iEdge, Param& pL, Param& pR);
 };
 
 struct CFDBndWallSlip : public CFDBoundary
 {
-	virtual void run(int iEdgs, Param& pL, Param& pR);
+	virtual void run(int iEdge, Param& pL, Param& pR);
 };
 
 struct CFDBndWallNoSlip : public CFDBoundary
 {
-	virtual void run(int iEdgs, Param& pL, Param& pR);
+    virtual void run(int iEdge, Param& pL, Param& pR);
+};
+
+struct CFDBndPressure : public CFDBoundary
+{
+    virtual void run(int iEdge, Param& pL, Param& pR);
 };
 
 

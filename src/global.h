@@ -6,37 +6,56 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include "mpi.h"
+#include <math.h>
 
 #ifdef _WIN32
 	#include <direct.h>
 	#define MK_DIR(name) _mkdir("mesh");
 #else
 	#include <sys/stat.h>
-	#define MK_DIR(name) mkdir(name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	#define MK_DIR(name) mkdir("mesh", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 #endif
 
 
-
-//! универсальная газовая постоянная
-const double gR = 8.314472;	// м2 кг с-2 К-1 Моль-1
+// ! ????????????? ??????? ??????????
+//static double gR = 8.314472;	// ?2 ?? ?-2 ?-1 ????-1
 
 /**
- *	Точка на плоскости
+ *	????? ?? ?????????
  */
 struct Point
 {
 	double x;
 	double y;
+
+	Point() : x(0.0), y(0.0) {}
+	Point(double ax, double ay) : x(ax), y(ay) {}
+	inline void operator *= (double q) { x *= q; y *= q; }
+	inline void operator /= (double q) { x /= q; y /= q; }
+	
+	inline void operator  = (double q) { x = q;  y = q; }
+	inline void operator  = (Point p) { x = p.x;  y = p.y; }
+	
+	inline void operator += (Point p) { x += p.x; y += p.y; }
+	inline void operator -= (Point p) { x -= p.x; y -= p.y; }
+	
+	inline void operator += (double q) { x += q; y += q; }
+	inline void operator -= (double q) { x -= q; y -= q; }
+	
+	friend inline double operator * (Point p1, Point p2) { return p1.x*p2.x + p1.y*p2.y; }
+	friend inline Point operator + (Point p1, Point p2) { return Point(p1.x + p2.x, p1.y + p2.y); }
+	friend inline Point operator - (Point p1, Point p2) { return Point(p1.x - p2.x, p1.y - p2.y); }
 };
 
 
 /**
- *	Двумерный вектор
+ *	????????? ??????
  */
 typedef Point Vector;
 
 /**
- *	Вектор размерности n
+ *	?????? ??????????? n
  */
 struct VECTOR
 {
@@ -67,7 +86,43 @@ struct VECTOR
 	
 	void		operator -=		(const double& x)		{ for (int i = 0; i < n; i++) elem[i] -= x; }
 
-	void		operator *=		(const double& x)		{ for (int i = 0; i < n; i++) elem[i] *= x;	}		
+	void		operator *=		(const double& x)		{ for (int i = 0; i < n; i++) elem[i] *= x; }
+
+	void		operator *=		(double** matr)		
+	{ 
+		double * tmp = new double[n];
+		for (int i = 0; i < n; i++) {
+			tmp[i] = 0.0;
+			for (int j = 0; j < n; j++) {
+				tmp[i] += matr[i][j] * elem[j];
+			}
+		}
+		delete[] elem;
+		elem = tmp;
+	}
+
+	void zero()
+	{
+		if (elem != NULL && n != 0) {
+			memset(elem, 0, n*sizeof(double));
+		}
+	}
+
+	void abs()
+	{
+		for (int i = 0; i < n; i++) {
+			elem[i] = fabs(elem[i]);
+		}
+	}
+
+	double norm()
+	{
+		double s = 0.0;
+		for (int i = 0; i < n; i++) {
+			s += elem[i] * elem[i];
+		}
+		return sqrt(s);
+	}
 
 	static double SCALAR_PROD(const VECTOR& v1, const VECTOR& v2) {
 		double s = 0;
@@ -85,7 +140,7 @@ struct VECTOR
 
 
 /**
- * Матрица размерности nxn
+ * ??????? ??????????? nxn
  */
 struct MATRIX
 {
@@ -119,32 +174,34 @@ struct MATRIX
 };
 
 /**
- *	Газодинамические параметры
+ *	???????????????? ?????????
  */
 struct Param
 {
-	double r;		//!< плотность
-	double p;		//!< давление
-	double e;		//!< внутренняя энергия
-	double E;		//!< полная энергия
-	double u;		//!< первая компонента вектора скорости
-	double v;		//!< вторая компонента вектора скорости
-	double cz;		//!< скорость звука
-	double T;		//!< температура
-	double ML;		//!< динамическая вязкость
+	double r;		//!< ?????????
+	double p;		//!< ????????
+	double e;		//!< ?????????? ???????
+	double E;		//!< ?????? ???????
+	double u;		//!< ?????? ?????????? ??????? ????????
+	double v;		//!< ?????? ?????????? ??????? ????????
+	double cz;		//!< ???????? ?????
+	double T;		//!< ???????????
+	double ML;		//!< ???????????? ????????
 	
+	inline double U2() { return  u*u + v*v; }
+	inline double magU() { return sqrt(U2()); }
 };
 
 /**
- *	Параметры региона геометрии задачи
+ *	????????? ??????? ????????? ??????
  */
 struct Region
 {
 	int		id;
 	int		matId;
-	int		cellType;		//!< тип ячейки
-	Param	par;			//!< параметры региона
-	std::string	name;		//!< имя региона
+	int		cellType;		//!< ??? ??????
+	Param	par;			//!< ????????? ???????
+	std::string	name;		//!< ??? ???????
 };
 
 struct Material
@@ -152,13 +209,17 @@ struct Material
 	const char*	name;
 	int			id;
 	
-	double		M;		//!< молярная масса
-	double		Cp;		//!< теплоемкость при постоянном давлении
-	double		ML;		//!< динамическая вязкость
-	double		K;		//!< коэффициент теплопроводности
+	double		M;		//!< ???????? ?????
+	double		Cp;		//!< ???????????? ??? ?????????? ????????
+	double		ML;		//!< ???????????? ????????
+	double		K;		//!< ??????????? ????????????????
 
 	void URS(Param &par, int flag);
+	void getML(Param &par);
 	inline double getGamma() { return Cp/(Cp-gR/M); }
+
+
+	static double gR;
 };
 
 struct Boundary
@@ -183,7 +244,10 @@ public:
 
 	static const int TYPE_MESH_WRONG_NAME = 201;
 	static const int TYPE_MESH_UNV_UNKNOWN_ELEMENT = 221;
-	static const int TYPE_MESH_UNV_NOT_DEFINED_BNT_EDGE = 222;
+	static const int TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE = 222;
+
+	static const int TYPE_MESH_GMSH_UNKNOWN_ELEMENT = 223;
+	static const int TYPE_MESH_GMSH_NOT_DEFINED_BND_EDGE = 224;
 
 	static const int FILE_OPENING_ERROR = 301;
 
@@ -197,16 +261,46 @@ private:
 };
 
 
+struct Parallel
+{
+	static void init(int* argc, char*** argv);
+	static void done();
+
+	static bool isRoot() { return (procId == 0); }
+	static void barrier() { MPI_Barrier(MPI_COMM_WORLD); }
+
+	static void send(int pid, int tag, int n, double* data);
+	static void send(int pid, int tag, int n, int* data);
+	static void send(int pid, int tag, int n, VECTOR* data);
+
+	static void recv(int pid, int tag, int n, double* data);
+	static void recv(int pid, int tag, int n, int* data);
+	static void recv(int pid, int tag, int n, VECTOR* data);
+
+	//static void bcast(int tag, int n, double* data);
+	//static void bcast(int tag, int n, int* data);
+	//static void bcast(int tag, int n, VECTOR* data);
+
+	static int procCount;
+	static int procId;
+	static double * buf;
+};
+
+
 extern FILE * hLog;
 
 inline double scalar_prod(Vector a, Vector b) { return a.x*b.x + a.y*b.y; }
+inline double vector_prod(Vector a, Vector b) { return a.x*b.y - a.y*b.x; }
 
 extern void log(char * format, ...);
 extern void EXIT(int err);
+extern void inverseMatr(double** a_src, double **am, int N);
+
+
 
 /**
- *	Решение задачи о распаде произвольного разрыва
- *	(с) ИПМ им. М.В.Келдыша РАН, Тишкин, Никишин, Змитренко
+ *	??????? ?????? ? ??????? ????????????? ???????
+ *	(?) ??? ??. ?.?.??????? ???, ??????, ???????, ?????????
  *
  *	c==========================================================
  *	C    Nikichine
@@ -219,6 +313,10 @@ extern void rim(double& RI, double& EI, double& PI, double& UN, double& UI, doub
 
 
 extern void rim_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double& WI,
+         double RB, double PB, double UB, double VB, double WB,
+         double RE, double PE, double UE, double VE, double WE, double GAM);
+
+extern void roe_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double& WI,
          double RB, double PB, double UB, double VB, double WB,
          double RE, double PE, double UE, double VE, double WE, double GAM);
 
